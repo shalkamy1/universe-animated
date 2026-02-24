@@ -8,6 +8,10 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Timetable from "./pages/Timetable";
 import Courses from "./pages/Courses";
+import StudentServices from "./pages/StudentServices";
+import CurriculumManagement from "./pages/CurriculumManagement";
+import RecordsEnrollment from "./pages/RecordsEnrollment";
+import AdminPanel from "./pages/AdminPanel";
 import DashboardLayout from "./components/layout/DashboardLayout";
 import NotFound from "./pages/NotFound";
 
@@ -26,10 +30,11 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/timetable" element={<Timetable />} />
             <Route path="/courses" element={<Courses />} />
-            <Route path="/student-services" element={<Dashboard />} />
+            <Route path="/student-services" element={<StudentServices />} />
             <Route path="/self-services" element={<Dashboard />} />
-            <Route path="/curriculum" element={<Dashboard />} />
-            <Route path="/records" element={<Dashboard />} />
+            <Route path="/curriculum" element={<CurriculumManagement />} />
+            <Route path="/records" element={<RecordsEnrollment />} />
+            <Route path="/admin" element={<AdminPanel />} />
             <Route path="/settings/password" element={<Dashboard />} />
             <Route path="/settings/account" element={<Dashboard />} />
           </Route>
