@@ -13,6 +13,10 @@ import {
   HelpCircle,
   QrCode,
   ShieldCheck,
+  Lightbulb,
+  Users,
+  ClipboardList,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -104,10 +108,14 @@ const Sidebar = () => {
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         <SidebarItem icon={LayoutDashboard} label="Dashboard" to="/dashboard" />
-        <SidebarItem icon={QrCode} label="Attendance QR" to="/timetable" />
-        <SidebarItem icon={GraduationCap} label="Student Services" to="/student-services" />
+        <SidebarItem icon={Calendar} label="Timetable" to="/timetable" />
+        <SidebarItem icon={ClipboardList} label="Add/Drop Courses" to="/courses" />
+        <SidebarItem icon={QrCode} label="Attendance QR" to="/attendance" />
+        <SidebarItem icon={Users} label="Faculty Portal" to="/faculty" />
+        <SidebarItem icon={GraduationCap} label="Student Affairs" to="/student-affairs" />
+        <SidebarItem icon={Lightbulb} label="Recommendations" to="/recommendations" />
         <SidebarItem icon={BookOpen} label="Curriculum Management" to="/curriculum" />
-        <SidebarItem icon={FileText} label="Records and Enrollment" to="/records" />
+        <SidebarItem icon={FileText} label="Records & Enrollment" to="/records" />
         <SidebarItem icon={ShieldCheck} label="Admin Panel" to="/admin" />
         <SidebarItem
           icon={Settings}
