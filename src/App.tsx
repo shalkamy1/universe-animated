@@ -8,7 +8,10 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Timetable from "./pages/Timetable";
 import Courses from "./pages/Courses";
-import StudentServices from "./pages/StudentServices";
+import Attendance from "./pages/Attendance";
+import FacultyPortal from "./pages/FacultyPortal";
+import StudentAffairs from "./pages/StudentAffairs";
+import Recommendations from "./pages/Recommendations";
 import CurriculumManagement from "./pages/CurriculumManagement";
 import RecordsEnrollment from "./pages/RecordsEnrollment";
 import AdminPanel from "./pages/AdminPanel";
@@ -30,7 +33,11 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/timetable" element={<Timetable />} />
             <Route path="/courses" element={<Courses />} />
-            <Route path="/student-services" element={<StudentServices />} />
+            <Route path="/attendance" element={<Attendance />} />
+            <Route path="/faculty" element={<FacultyPortal />} />
+            <Route path="/student-affairs" element={<StudentAffairs />} />
+            <Route path="/recommendations" element={<Recommendations />} />
+            <Route path="/student-services" element={<StudentAffairs />} />
             <Route path="/self-services" element={<Dashboard />} />
             <Route path="/curriculum" element={<CurriculumManagement />} />
             <Route path="/records" element={<RecordsEnrollment />} />
