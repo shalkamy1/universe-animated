@@ -11,16 +11,39 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import universityBuilding from "@/assets/university-building.png";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [language, setLanguage] = useState("english");
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/dashboard");
+    if (!email || !password) {
+      toast.error("Please enter email and password");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await login(email, password);
+      toast.success("Login successful!");
+      navigate("/dashboard");
+    } catch (err: any) {
+      // If no API is configured, navigate anyway (dev mode)
+      if (err?.message === "NO_API") {
+        toast.info("No API configured — entering demo mode");
+        navigate("/dashboard");
+      } else {
+        toast.error(err?.message || "Invalid credentials");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -91,8 +114,8 @@ const Login = () => {
               </div>
 
               <div className="opacity-0 animate-fade-up" style={{ animationDelay: "600ms", animationFillMode: "forwards" }}>
-                <Button type="submit" variant="hero" className="w-full">
-                  Sign In
+                <Button type="submit" variant="hero" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Signing in..." : "Sign In"}
                 </Button>
               </div>
 

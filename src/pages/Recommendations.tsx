@@ -1,42 +1,46 @@
 import { useState } from "react";
-import { Lightbulb, TrendingUp, Target, AlertTriangle, CheckCircle, BookOpen, Zap, Star } from "lucide-react";
+import { Lightbulb, TrendingUp, Target, AlertTriangle, CheckCircle, Star, Zap, Loader2, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-
-type Scenario = "improve_gpa" | "finish_courses";
-
-const recommendationsData: Record<Scenario, Array<{
-  code: string;
-  name: string;
-  credits: number;
-  reason: string;
-  tag: string;
-  confidence: number;
-}>> = {
-  improve_gpa: [
-    { code: "ENG201", name: "Technical Writing", credits: 2, reason: "High GPA potential — 92% students score B+ or above", tag: "Easy A", confidence: 94 },
-    { code: "HUM101", name: "Introduction to Philosophy", credits: 3, reason: "Light workload with high success rate", tag: "Light Load", confidence: 88 },
-    { code: "CS310", name: "Software Engineering", credits: 3, reason: "Core requirement with above-average pass rate", tag: "Core + High Pass", confidence: 82 },
-    { code: "MATH202", name: "Statistics", credits: 3, reason: "Prerequisite for electives — good grade booster", tag: "GPA Boost", confidence: 79 },
-  ],
-  finish_courses: [
-    { code: "CS450", name: "Operating Systems", credits: 3, reason: "Core requirement — needed for graduation", tag: "Core Req", confidence: 90 },
-    { code: "CS460", name: "Computer Networks", credits: 3, reason: "Core requirement — only offered in Spring", tag: "Time Sensitive", confidence: 88 },
-    { code: "MATH401", name: "Numerical Analysis", credits: 3, reason: "Last math requirement remaining", tag: "Final Math", confidence: 85 },
-    { code: "CS499", name: "Senior Project", credits: 6, reason: "Capstone requirement — register early", tag: "Capstone", confidence: 95 },
-  ],
-};
-
-const alerts = [
-  { type: "warning", message: "Your GPA dropped from 2.8 to 2.5 last semester. Consider lighter course loads.", icon: AlertTriangle },
-  { type: "info", message: "You have 15 credits remaining to graduate. Expected graduation: Spring 2025.", icon: Target },
-  { type: "success", message: "CS401 midterm score above class average — keep it up!", icon: CheckCircle },
-];
+import { toast } from "sonner";
+import { advisorService } from "@/services/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Recommendations = () => {
-  const [scenario, setScenario] = useState<Scenario>("improve_gpa");
+  const { user } = useAuth();
+  const [scenario, setScenario] = useState<"improve_gpa" | "finish_courses">("improve_gpa");
+  const [recommendations, setRecommendations] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [customMessage, setCustomMessage] = useState("");
 
-  const recommendations = recommendationsData[scenario];
+  const scenarioMessages: Record<string, string> = {
+    improve_gpa: "I want to improve my GPA. Recommend courses with higher success rates and better grade impact.",
+    finish_courses: "I want to finish my remaining courses and graduate as fast as possible.",
+  };
+
+  const handleGetRecommendations = async () => {
+    const studentId = user?.student?.id;
+    if (!studentId) {
+      toast.error("Student profile not found — connect to the API");
+      return;
+    }
+    setLoading(true);
+    try {
+      const message = customMessage || scenarioMessages[scenario];
+      const result = await advisorService.recommend(studentId, message);
+      setRecommendations(result);
+      toast.success("Recommendations generated!");
+    } catch (err: any) {
+      if (err?.message === "NO_API") {
+        toast.info("No API configured — connect your backend to get real recommendations");
+      } else {
+        toast.error(err?.message || "Failed to get recommendations");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -82,74 +86,58 @@ const Recommendations = () => {
         </button>
       </div>
 
-      {/* Recommendations List */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-foreground opacity-0 animate-fade-up" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
-          Recommended Courses for Next Semester
-        </h2>
-        {recommendations.map((course, i) => (
-          <div
-            key={course.code}
-            className="bg-card rounded-xl p-5 border border-border shadow-card opacity-0 animate-fade-up transition-all hover:shadow-lg"
-            style={{ animationDelay: `${300 + i * 100}ms`, animationFillMode: "forwards" }}
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-semibold px-2 py-1 rounded bg-primary/10 text-primary">{course.code}</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-course-orange/10 text-course-orange flex items-center gap-1">
-                    <Star className="h-3 w-3" />
-                    {course.tag}
-                  </span>
-                  <span className="text-xs text-muted-foreground">{course.credits} credits</span>
-                </div>
-                <h3 className="font-semibold text-foreground">{course.name}</h3>
-                <div className="flex items-start gap-2 mt-2">
-                  <Zap className="h-4 w-4 text-course-orange mt-0.5 shrink-0" />
-                  <p className="text-sm text-muted-foreground">{course.reason}</p>
-                </div>
-              </div>
-              <div className="text-right ml-4">
-                <div className="text-2xl font-bold text-primary">{course.confidence}%</div>
-                <p className="text-xs text-muted-foreground">match</p>
-              </div>
-            </div>
-            <div className="mt-3 h-1.5 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary rounded-full transition-all duration-1000"
-                style={{ width: `${course.confidence}%` }}
-              />
-            </div>
-          </div>
-        ))}
+      {/* Custom Message */}
+      <div className="flex gap-3 opacity-0 animate-fade-up" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
+        <div className="relative flex-1">
+          <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Or type a custom advising question..."
+            value={customMessage}
+            onChange={(e) => setCustomMessage(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Button variant="hero" onClick={handleGetRecommendations} disabled={loading} className="gap-2">
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+          Get Recommendations
+        </Button>
       </div>
 
-      {/* Academic Alerts */}
-      <div className="space-y-3 opacity-0 animate-fade-up" style={{ animationDelay: "700ms", animationFillMode: "forwards" }}>
+      {/* Results */}
+      {recommendations && (
+        <div className="space-y-4 opacity-0 animate-fade-up" style={{ animationDelay: "300ms", animationFillMode: "forwards" }}>
+          <h2 className="text-lg font-semibold text-foreground">AI Advisor Response</h2>
+          {typeof recommendations === "string" ? (
+            <div className="bg-card rounded-xl p-6 border border-border">
+              <p className="text-foreground whitespace-pre-wrap">{recommendations}</p>
+            </div>
+          ) : (
+            <pre className="bg-card rounded-xl p-6 border border-border text-sm text-foreground overflow-auto">
+              {JSON.stringify(recommendations, null, 2)}
+            </pre>
+          )}
+        </div>
+      )}
+
+      {/* Placeholder when no results yet */}
+      {!recommendations && !loading && (
+        <div className="bg-card rounded-xl border border-border p-8 text-center opacity-0 animate-fade-up" style={{ animationDelay: "300ms", animationFillMode: "forwards" }}>
+          <Lightbulb className="h-12 w-12 text-course-orange/30 mx-auto mb-3" />
+          <p className="font-medium text-foreground">Select a scenario and click "Get Recommendations"</p>
+          <p className="text-sm text-muted-foreground mt-1">The AI advisor will analyze your academic profile and suggest courses</p>
+        </div>
+      )}
+
+      {/* Academic Alerts placeholder */}
+      <div className="space-y-3 opacity-0 animate-fade-up" style={{ animationDelay: "400ms", animationFillMode: "forwards" }}>
         <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
           <AlertTriangle className="h-5 w-5 text-course-orange" />
           Academic Alerts
         </h2>
-        {alerts.map((alert, i) => (
-          <div
-            key={i}
-            className={cn(
-              "rounded-xl p-4 flex items-start gap-3 border opacity-0 animate-fade-up",
-              alert.type === "warning" && "bg-course-orange/5 border-course-orange/20",
-              alert.type === "info" && "bg-primary/5 border-primary/20",
-              alert.type === "success" && "bg-course-green/5 border-course-green/20"
-            )}
-            style={{ animationDelay: `${800 + i * 100}ms`, animationFillMode: "forwards" }}
-          >
-            <alert.icon className={cn(
-              "h-5 w-5 mt-0.5 shrink-0",
-              alert.type === "warning" && "text-course-orange",
-              alert.type === "info" && "text-primary",
-              alert.type === "success" && "text-course-green"
-            )} />
-            <p className="text-sm text-foreground">{alert.message}</p>
-          </div>
-        ))}
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex items-start gap-3">
+          <Target className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+          <p className="text-sm text-foreground">Connect to the API to view personalized academic alerts based on your GPA history.</p>
+        </div>
       </div>
     </div>
   );

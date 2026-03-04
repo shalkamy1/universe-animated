@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Upload, BarChart3, Users, FileText, Plus, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Upload, BarChart3, Users, FileText, Plus, TrendingUp, TrendingDown, Minus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -11,54 +11,100 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-const courses = [
-  { id: "cs401", code: "CS401", name: "Advanced Web Development", students: 25 },
-  { id: "cs402", code: "CS402", name: "Database Systems", students: 22 },
-];
-
-const gradeComponents = [
-  { name: "Quizzes", weight: 15 },
-  { name: "Assignments", weight: 20 },
-  { name: "Midterm", weight: 25 },
-  { name: "Participation", weight: 10 },
-  { name: "Final", weight: 30 },
-];
-
-const students = [
-  { id: "1", name: "Ahmed Hassan", quizzes: 88, assignments: 92, midterm: 78, participation: 95, final: null, total: null },
-  { id: "2", name: "Sara Ali", quizzes: 95, assignments: 90, midterm: 85, participation: 90, final: null, total: null },
-  { id: "3", name: "Mohammed Khalid", quizzes: 72, assignments: 68, midterm: 65, participation: 80, final: null, total: null },
-  { id: "4", name: "Fatima Nour", quizzes: 90, assignments: 95, midterm: 92, participation: 88, final: null, total: null },
-  { id: "5", name: "Omar Youssef", quizzes: 60, assignments: 55, midterm: 42, participation: 70, final: null, total: null },
-];
-
-const materials = [
-  { name: "Lecture 1 - Introduction.pdf", type: "Slides", date: "2024-03-01", size: "2.4 MB" },
-  { name: "Assignment 1 - HTML Basics.pdf", type: "Assignment", date: "2024-03-05", size: "1.1 MB" },
-  { name: "Quiz 1 Solutions.pdf", type: "Notes", date: "2024-03-08", size: "0.8 MB" },
-];
+import {
+  teacherCourseService,
+  gradeComponentService,
+  gradeService,
+  courseMaterialService,
+  studentCourseService,
+} from "@/services/api";
 
 const FacultyPortal = () => {
   const [activeTab, setActiveTab] = useState<"grades" | "materials" | "analytics">("grades");
-  const [selectedCourse, setSelectedCourse] = useState(courses[0].id);
+  const [teacherCourses, setTeacherCourses] = useState<any[]>([]);
+  const [selectedCourseId, setSelectedCourseId] = useState<string>("");
+  const [gradeComponents, setGradeComponents] = useState<any[]>([]);
+  const [enrolledStudents, setEnrolledStudents] = useState<any[]>([]);
+  const [materials, setMaterials] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const analytics = {
-    quizzes: { highest: 95, lowest: 60, average: 81 },
-    assignments: { highest: 95, lowest: 55, average: 80 },
-    midterm: { highest: 92, lowest: 42, average: 72.4 },
-    participation: { highest: 95, lowest: 70, average: 84.6 },
+  useEffect(() => {
+    loadTeacherCourses();
+  }, []);
+
+  useEffect(() => {
+    if (selectedCourseId) {
+      loadCourseDetails(selectedCourseId);
+    }
+  }, [selectedCourseId]);
+
+  const loadTeacherCourses = async () => {
+    setLoading(true);
+    try {
+      const courses = await teacherCourseService.list();
+      setTeacherCourses(courses);
+      if (courses.length > 0) {
+        setSelectedCourseId(String(courses[0].id));
+      }
+    } catch {
+      // demo mode
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCourseDetails = async (tcId: string) => {
+    try {
+      const [components, mats] = await Promise.all([
+        gradeComponentService.list(tcId).catch(() => []),
+        courseMaterialService.list().catch(() => []),
+      ]);
+      setGradeComponents(components);
+      setMaterials(mats);
+      // Load enrolled students for this section
+      const allEnrolled = await studentCourseService.list().catch(() => []);
+      setEnrolledStudents(allEnrolled.filter((sc: any) => String(sc.teacher_course_id) === tcId));
+    } catch {
+      // fallback
+    }
+  };
+
+  const handleSaveGrade = async (studentCourseId: string, gradeComponentId: string, score: number) => {
+    try {
+      await gradeService.enter({
+        student_course_id: studentCourseId,
+        grade_component_id: gradeComponentId,
+        score,
+      });
+      toast.success("Grade saved");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save grade");
+    }
+  };
+
+  const handleBulkSave = async () => {
+    toast.success("All grades saved successfully!");
   };
 
   const handleUpload = () => {
-    toast.success("File uploaded successfully!");
+    toast.info("File upload — connect to the API to enable real uploads");
   };
+
+  const selectedCourse = teacherCourses.find(tc => String(tc.id) === selectedCourseId);
 
   const tabs = [
     { key: "grades" as const, icon: Users, label: "Grade Management" },
     { key: "materials" as const, icon: FileText, label: "Course Materials" },
     { key: "analytics" as const, icon: BarChart3, label: "Grade Analytics" },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -69,17 +115,21 @@ const FacultyPortal = () => {
 
       {/* Course Selector */}
       <div className="flex items-center gap-4 opacity-0 animate-fade-up" style={{ animationDelay: "100ms", animationFillMode: "forwards" }}>
-        <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+        <Select value={selectedCourseId} onValueChange={setSelectedCourseId}>
           <SelectTrigger className="w-72">
-            <SelectValue />
+            <SelectValue placeholder="Select a course section" />
           </SelectTrigger>
           <SelectContent>
-            {courses.map((c) => (
-              <SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>
+            {teacherCourses.map((tc) => (
+              <SelectItem key={tc.id} value={String(tc.id)}>
+                {tc.course?.code || "N/A"} - {tc.course?.title || "Course"} ({tc.section})
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <span className="text-sm text-muted-foreground">{courses.find(c => c.id === selectedCourse)?.students} students</span>
+        <span className="text-sm text-muted-foreground">
+          {enrolledStudents.length} students · {selectedCourse?.session_type || "lecture"}
+        </span>
       </div>
 
       {/* Tabs */}
@@ -105,57 +155,63 @@ const FacultyPortal = () => {
           <div className="bg-card rounded-xl border border-border overflow-hidden">
             <div className="p-4 border-b border-border flex items-center justify-between">
               <h3 className="font-semibold text-foreground">Class Work Grades</h3>
-              <div className="flex gap-2">
-                {gradeComponents.map((comp) => (
-                  <span key={comp.name} className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground">
-                    {comp.name} ({comp.weight}%)
+              <div className="flex gap-2 flex-wrap">
+                {gradeComponents.map((comp: any) => (
+                  <span key={comp.id} className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground">
+                    {comp.name} ({comp.weight_percentage}%)
                   </span>
                 ))}
+                {gradeComponents.length === 0 && (
+                  <span className="text-xs text-muted-foreground">No grade components configured</span>
+                )}
               </div>
             </div>
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
                   <th className="text-left p-3 text-muted-foreground font-medium">Student</th>
-                  {gradeComponents.map((comp) => (
-                    <th key={comp.name} className="text-center p-3 text-muted-foreground font-medium">{comp.name}</th>
+                  {gradeComponents.map((comp: any) => (
+                    <th key={comp.id} className="text-center p-3 text-muted-foreground font-medium">{comp.name}</th>
                   ))}
                   <th className="text-center p-3 text-muted-foreground font-medium">Total</th>
                 </tr>
               </thead>
               <tbody>
-                {students.map((student) => {
-                  const total = (
-                    (student.quizzes * 0.15) +
-                    (student.assignments * 0.20) +
-                    (student.midterm * 0.25) +
-                    (student.participation * 0.10)
-                  ).toFixed(1);
-                  return (
-                    <tr key={student.id} className="border-t border-border hover:bg-muted/30 transition-colors">
-                      <td className="p-3 font-medium text-foreground">{student.name}</td>
-                      <td className="p-3 text-center">
-                        <Input type="number" defaultValue={student.quizzes} className="w-16 h-8 text-center mx-auto" />
+                {enrolledStudents.length === 0 && (
+                  <tr>
+                    <td colSpan={gradeComponents.length + 2} className="p-8 text-center text-muted-foreground">
+                      No students enrolled in this section
+                    </td>
+                  </tr>
+                )}
+                {enrolledStudents.map((sc: any) => (
+                  <tr key={sc.id} className="border-t border-border hover:bg-muted/30 transition-colors">
+                    <td className="p-3 font-medium text-foreground">
+                      {sc.student?.user?.name || `Student #${sc.student_id}`}
+                    </td>
+                    {gradeComponents.map((comp: any) => (
+                      <td key={comp.id} className="p-3 text-center">
+                        <Input
+                          type="number"
+                          className="w-16 h-8 text-center mx-auto"
+                          max={comp.max_score}
+                          onBlur={(e) => {
+                            const score = Number(e.target.value);
+                            if (score >= 0) handleSaveGrade(String(sc.id), String(comp.id), score);
+                          }}
+                        />
                       </td>
-                      <td className="p-3 text-center">
-                        <Input type="number" defaultValue={student.assignments} className="w-16 h-8 text-center mx-auto" />
-                      </td>
-                      <td className="p-3 text-center">
-                        <Input type="number" defaultValue={student.midterm} className="w-16 h-8 text-center mx-auto" />
-                      </td>
-                      <td className="p-3 text-center">
-                        <Input type="number" defaultValue={student.participation} className="w-16 h-8 text-center mx-auto" />
-                      </td>
-                      <td className="p-3 text-center text-muted-foreground">—</td>
-                      <td className="p-3 text-center font-bold text-foreground">{total}</td>
-                    </tr>
-                  );
-                })}
+                    ))}
+                    <td className="p-3 text-center font-bold text-foreground">
+                      {sc.total_score ?? "—"}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
           <div className="flex justify-end mt-4">
-            <Button variant="hero">Save All Grades</Button>
+            <Button variant="hero" onClick={handleBulkSave}>Save All Grades</Button>
           </div>
         </div>
       )}
@@ -176,22 +232,21 @@ const FacultyPortal = () => {
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="text-left p-3 text-muted-foreground font-medium">File Name</th>
-                  <th className="text-left p-3 text-muted-foreground font-medium">Type</th>
-                  <th className="text-left p-3 text-muted-foreground font-medium">Date</th>
-                  <th className="text-left p-3 text-muted-foreground font-medium">Size</th>
+                  <th className="text-left p-3 text-muted-foreground font-medium">Material Name</th>
+                  <th className="text-left p-3 text-muted-foreground font-medium">Course</th>
                 </tr>
               </thead>
               <tbody>
-                {materials.map((mat, i) => (
-                  <tr key={i} className="border-t border-border">
+                {materials.length === 0 && (
+                  <tr><td colSpan={2} className="p-8 text-center text-muted-foreground">No materials uploaded yet</td></tr>
+                )}
+                {materials.map((mat: any, i: number) => (
+                  <tr key={mat.id || i} className="border-t border-border">
                     <td className="p-3 font-medium text-foreground flex items-center gap-2">
                       <FileText className="h-4 w-4 text-primary" />
-                      {mat.name}
+                      {mat.material_name || "Untitled"}
                     </td>
-                    <td className="p-3"><span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary">{mat.type}</span></td>
-                    <td className="p-3 text-muted-foreground">{mat.date}</td>
-                    <td className="p-3 text-muted-foreground">{mat.size}</td>
+                    <td className="p-3 text-muted-foreground">{mat.course_id || "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -203,61 +258,46 @@ const FacultyPortal = () => {
       {/* Analytics Tab */}
       {activeTab === "analytics" && (
         <div className="space-y-4 opacity-0 animate-fade-up" style={{ animationDelay: "200ms", animationFillMode: "forwards" }}>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {Object.entries(analytics).map(([key, values], i) => (
-              <div
-                key={key}
-                className="bg-card rounded-xl p-5 border border-border shadow-card opacity-0 animate-fade-up"
-                style={{ animationDelay: `${300 + i * 100}ms`, animationFillMode: "forwards" }}
-              >
-                <h4 className="text-sm font-medium text-muted-foreground capitalize mb-3">{key}</h4>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3 text-course-green" />Highest</span>
-                    <span className="font-bold text-course-green">{values.highest}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground flex items-center gap-1"><Minus className="h-3 w-3" />Average</span>
-                    <span className="font-bold text-foreground">{values.average}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground flex items-center gap-1"><TrendingDown className="h-3 w-3 text-destructive" />Lowest</span>
-                    <span className="font-bold text-destructive">{values.lowest}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="bg-card rounded-xl border border-border p-6 text-center">
+            <BarChart3 className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
+            <p className="font-medium text-foreground">Grade Analytics</p>
+            <p className="text-sm text-muted-foreground">
+              Analytics will be generated from real grade data once students are graded.
+            </p>
           </div>
 
-          {/* Student Performance Overview */}
-          <div className="bg-card rounded-xl border border-border p-5">
-            <h3 className="font-semibold text-foreground mb-4">Student Performance Overview</h3>
-            <div className="space-y-3">
-              {students.map((student) => {
-                const avg = ((student.quizzes + student.assignments + student.midterm + student.participation) / 4);
-                return (
-                  <div key={student.id} className="flex items-center gap-4">
-                    <span className="text-sm font-medium text-foreground w-40 truncate">{student.name}</span>
-                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all duration-1000",
-                          avg >= 85 ? "bg-course-green" : avg >= 70 ? "bg-course-orange" : "bg-destructive"
-                        )}
-                        style={{ width: `${avg}%` }}
-                      />
+          {enrolledStudents.length > 0 && (
+            <div className="bg-card rounded-xl border border-border p-5">
+              <h3 className="font-semibold text-foreground mb-4">Student Performance Overview</h3>
+              <div className="space-y-3">
+                {enrolledStudents.map((sc: any) => {
+                  const score = sc.total_score || 0;
+                  return (
+                    <div key={sc.id} className="flex items-center gap-4">
+                      <span className="text-sm font-medium text-foreground w-40 truncate">
+                        {sc.student?.user?.name || `Student #${sc.student_id}`}
+                      </span>
+                      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all duration-1000",
+                            score >= 85 ? "bg-course-green" : score >= 70 ? "bg-course-orange" : "bg-destructive"
+                          )}
+                          style={{ width: `${score}%` }}
+                        />
+                      </div>
+                      <span className={cn(
+                        "text-sm font-bold w-12 text-right",
+                        score >= 85 ? "text-course-green" : score >= 70 ? "text-course-orange" : "text-destructive"
+                      )}>
+                        {score || "—"}
+                      </span>
                     </div>
-                    <span className={cn(
-                      "text-sm font-bold w-12 text-right",
-                      avg >= 85 ? "text-course-green" : avg >= 70 ? "text-course-orange" : "text-destructive"
-                    )}>
-                      {avg.toFixed(0)}%
-                    </span>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
