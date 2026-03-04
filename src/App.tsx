@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -26,27 +27,29 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/login" element={<Login />} />
-          <Route element={<DashboardLayout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/timetable" element={<Timetable />} />
-            <Route path="/courses" element={<Courses />} />
-            <Route path="/attendance" element={<Attendance />} />
-            <Route path="/faculty" element={<FacultyPortal />} />
-            <Route path="/student-affairs" element={<StudentAffairs />} />
-            <Route path="/recommendations" element={<Recommendations />} />
-            <Route path="/student-services" element={<StudentAffairs />} />
-            <Route path="/self-services" element={<Dashboard />} />
-            <Route path="/curriculum" element={<CurriculumManagement />} />
-            <Route path="/records" element={<RecordsEnrollment />} />
-            <Route path="/admin" element={<AdminPanel />} />
-            <Route path="/settings/password" element={<Dashboard />} />
-            <Route path="/settings/account" element={<Dashboard />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/login" element={<Login />} />
+            <Route element={<DashboardLayout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/timetable" element={<Timetable />} />
+              <Route path="/courses" element={<Courses />} />
+              <Route path="/attendance" element={<Attendance />} />
+              <Route path="/faculty" element={<FacultyPortal />} />
+              <Route path="/student-affairs" element={<StudentAffairs />} />
+              <Route path="/recommendations" element={<Recommendations />} />
+              <Route path="/student-services" element={<StudentAffairs />} />
+              <Route path="/self-services" element={<Dashboard />} />
+              <Route path="/curriculum" element={<CurriculumManagement />} />
+              <Route path="/records" element={<RecordsEnrollment />} />
+              <Route path="/admin" element={<AdminPanel />} />
+              <Route path="/settings/password" element={<Dashboard />} />
+              <Route path="/settings/account" element={<Dashboard />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
